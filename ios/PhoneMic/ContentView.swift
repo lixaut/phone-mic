@@ -28,6 +28,7 @@ struct ContentView: View {
 
     private let ws = WSClient()
     private let audio = AudioEngine()
+    private let rtc = RtcClient()
 
     var body: some View {
         VStack(spacing: 40) {
@@ -71,11 +72,24 @@ struct ContentView: View {
 
     private func setupCallbacks() {
         ws.onStateChange = { c in connected = c }
+        rtc.attachSignaling(ws)
+        rtc.onStateChange = { mode, up in
+            // WebRTC 媒体通道状态（可选 UI 展示），此处静默
+            _ = (mode, up)
+        }
         audio.micLevel = { l in DispatchQueue.main.async { level = l } }
+        // 旧 ws 二进制路径保留作为回退（RTC 未就绪时仍可工作）
         audio.onMicFrame = { [weak ws] data in ws?.send(data) }
         ws.onBinary = { [weak audio] data in
             guard outOn else { return }
             audio?.enqueuePlayback(data: data)
+        }
+        // 服务端 rtc-answer 转发给 RtcClient
+        ws.onText = { [weak rtc] text in
+            guard let d = text.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
+                  obj["t"] as? String == "rtc-answer" else { return }
+            rtc?.handleAnswer(obj)
         }
         // 断线重连成功后补发当前开关状态（与浏览器版行为一致）
         ws.onStateChange = { [weak ws] c in
@@ -90,9 +104,11 @@ struct ContentView: View {
     private func toggleMic() {
         micOn.toggle()
         if micOn {
-            try? audio.startMic()
+            try? audio.startMic()   // 回退链路
+            rtc.startMic()          // WebRTC 主链路（Opus/AEC/AGC）
         } else {
             audio.stopMic()
+            rtc.stopMic()
         }
         ws.send(text: "{\"type\":\"mic\",\"enabled\":\(micOn)}")
         UserDefaults.standard.set(serverURL, forKey: "serverURL")
@@ -101,9 +117,11 @@ struct ContentView: View {
     private func toggleOut() {
         outOn.toggle()
         if outOn {
-            try? audio.startRenderer()
+            try? audio.startRenderer()  // 回退链路
+            rtc.startOut()              // WebRTC 主链路
         } else {
             audio.stopRenderer()
+            rtc.stopOut()
         }
         ws.send(text: "{\"type\":\"output\",\"enabled\":\(outOn)}")
         UserDefaults.standard.set(serverURL, forKey: "serverURL")

@@ -40,6 +40,16 @@ let loopbackLastLog = 0;
 let loopbackWsWarned = false;
 let loopbackHasSound = false;
 
+// WebRTC 媒体通道（iOS 客户端用；浏览器旧客户端自动走 ws 路径）
+let rtcBridge = null;
+try {
+  const RtcBridge = require('./rtc');
+  rtcBridge = new RtcBridge(audioBridge);
+  console.log('[rtc] WebRTC bridge ready (werift + opus)');
+} catch (e) {
+  console.warn('[rtc] WebRTC bridge unavailable:', e.message);
+}
+
 function startLoopback(ws) {
   if (loopbackProc) {
     // 进程还在跑但可能绑的是旧连接，重新绑定到当前 ws
@@ -66,6 +76,8 @@ function startLoopback(ws) {
   loopbackProc.on('close', (code) => { console.log('[loopback] exited code=' + code + ' totalDataBytes=' + loopbackDataCount); loopbackProc = null; loopbackWs = null; });
   loopbackProc.stdout.on('data', (data) => {
     loopbackDataCount += data.length;
+    // WebRTC 路径：PCM 编码为 Opus 发给 iOS 客户端
+    if (rtcBridge) rtcBridge.writeOutgoingPcm(data);
     // 检测CABLE里是否真的有声音（全0=电脑没把声音输出到CABLE Input）
     for (let i = 0; i < data.length - 1; i += 2) {
       if (data[i] !== 0 || data[i + 1] !== 0) { loopbackHasSound = true; break; }
@@ -140,6 +152,11 @@ wss.on('connection', (ws) => {
     const text = data.toString();
     try {
       const msg = JSON.parse(text);
+      // WebRTC 信令消息转发给 rtcBridge
+      if (rtcBridge && msg.t && String(msg.t).startsWith('rtc-')) {
+        rtcBridge.handleSignal(ws, msg);
+        return;
+      }
       if (msg.type === 'mic') {
         micEnabled = msg.enabled;
         console.log('[ws] Input (mic):', micEnabled ? 'ON' : 'OFF');
