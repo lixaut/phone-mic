@@ -22,7 +22,8 @@ try {
   process.exit(1);
 }
 
-const wss = new WebSocketServer({ server });
+// perMessageDeflate 关闭：PCM 二进制流压缩无收益，纯耗 CPU 且增加延迟
+const wss = new WebSocketServer({ server, perMessageDeflate: false });
 
 let audioBridge = null;
 try {
