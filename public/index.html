@@ -213,9 +213,17 @@
       if(!audioCtx) audioCtx=new AudioContext({sampleRate:48000});
       if(audioCtx.state==='suspended'){await audioCtx.resume();}
       log('requesting mic permission...');
-      stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,sampleRate:48000,channelCount:1}});
+      stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:true,autoGainControl:true,sampleRate:48000,channelCount:1}});
       log('mic permission granted');
       var src=audioCtx.createMediaStreamSource(stream);
+      // 音质链路：高通100Hz去低频杂音 → 温和压缩器均衡远近场 → 增益1.6抬人声
+      var hp=audioCtx.createBiquadFilter();
+      hp.type='highpass';hp.frequency.value=100;hp.Q.value=0.7;
+      var comp=audioCtx.createDynamicsCompressor();
+      comp.threshold.value=-32;comp.knee.value=20;comp.ratio.value=3;
+      comp.attack.value=0.01;comp.release.value=0.25;
+      var gain=audioCtx.createGain();gain.gain.value=1.6;
+      src.connect(hp);hp.connect(comp);comp.connect(gain);
       // ScriptProcessor 采集（与输出同方案，避开 AudioWorklet port 兼容问题）
       workletNode=audioCtx.createScriptProcessor(4096,1,1);
       var pcmBuf=[];
@@ -240,7 +248,7 @@
         }
       };
       var srcSink=audioCtx.createGain();
-      src.connect(srcSink);srcSink.connect(workletNode);
+      gain.connect(srcSink);srcSink.connect(workletNode);
       // 必须连到 destination 才会被拉流处理；用零增益避免回声
       var silent=audioCtx.createGain();silent.gain.value=0;
       workletNode.connect(silent);silent.connect(audioCtx.destination);
