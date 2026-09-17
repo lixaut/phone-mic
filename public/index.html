@@ -2,88 +2,37 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <!-- viewport-fit=cover：内容延伸到刘海区，配合 CSS safe-area-inset 适配 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Phone Mic</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #000;
-      color: #fff;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      -webkit-user-select: none;
-      user-select: none;
-    }
-    .status { font-size: 13px; color: #666; margin-bottom: 24px; }
-    .status.on { color: #4caf50; }
-    .btn-row { display: flex; gap: 40px; }
-    .ctrl-btn {
-      width: 72px; height: 72px; border-radius: 50%;
-      border: none; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.15s; position: relative;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .ctrl-btn:active { transform: scale(0.92); }
-    .ctrl-btn .bg {
-      position: absolute; inset: 0; border-radius: 50%;
-      transition: all 0.15s;
-    }
-    .ctrl-btn .icon-wrap {
-      position: relative; z-index: 1;
-      width: 44px; height: 44px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.15s;
-    }
-    .ctrl-btn svg { width: 28px; height: 28px; transition: fill 0.15s; }
 
-    /* INPUT button */
-    .btn-in .bg { background: #333; }
-    .btn-in .icon-wrap { background: #555; }
-    .btn-in svg { fill: #999; }
-    .btn-in .label { color: #666; }
-
-    .btn-in.on .bg { background: #c62828; box-shadow: 0 0 30px rgba(198,40,40,0.5); }
-    .btn-in.on .icon-wrap { background: #f44336; }
-    .btn-in.on svg { fill: #fff; }
-    .btn-in.on .label { color: #f44336; }
-
-    /* OUTPUT button */
-    .btn-out .bg { background: #333; }
-    .btn-out .icon-wrap { background: #555; }
-    .btn-out svg { fill: #999; }
-    .btn-out .label { color: #666; }
-
-    .btn-out.on .bg { background: #1565c0; box-shadow: 0 0 30px rgba(21,101,192,0.5); }
-    .btn-out.on .icon-wrap { background: #2196f3; }
-    .btn-out.on svg { fill: #fff; }
-    .btn-out.on .label { color: #2196f3; }
-
-    .label {
-      position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%);
-      font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
-      white-space: nowrap; transition: color 0.15s;
-    }
-
-    .level-bar { width: 160px; height: 4px; background: #222; border-radius: 2px; margin-top: 40px; overflow: hidden; }
-    .level-fill { height: 100%; width: 0%; background: #4caf50; transition: width 0.05s; }
-    #dbglog {
-      position: fixed; left: 0; right: 0; bottom: 0; height: 30vh;
-      background: rgba(0,0,0,0.85); color: #0f0; font: 10px monospace;
-      overflow-y: scroll; padding: 4px; word-break: break-all; z-index: 9;
-      display: none; /* 默认隐藏，连点状态栏5次切换 */
-    }
-  </style>
+  <!--
+    样式模块（按层引用，后者可覆盖前者）：
+    - theme.css      全局主题：重置、根布局、黑白灰基调
+    - layout.css     三段式布局：顶栏 / 波形区 / 按钮区、安全区适配
+    - components.css 可交互组件：常亮开关、INPUT/OUTPUT 大圆钮
+  -->
+  <link rel="stylesheet" href="styles/theme.css">
+  <link rel="stylesheet" href="styles/layout.css">
+  <link rel="stylesheet" href="styles/components.css">
 </head>
 <body>
-  <div class="status" id="status">Connecting...</div>
+
+  <!-- 顶部状态栏：左=连接状态（圆点+文字），右=屏幕常亮开关 -->
+  <div class="topbar">
+    <div class="conn" id="conn">
+      <span class="dot"></span>
+      <span id="statusText">Connecting...</span>
+    </div>
+    <span class="awake-toggle" id="awakeBtn">常亮</span>
+  </div>
+
+  <!-- 中部波形区：实时音频波形（静音时为一排横线段） -->
+  <div class="wave-area"><canvas id="wave"></canvas></div>
+
+  <!-- 底部控制区：INPUT=手机麦克风推流，OUTPUT=电脑声音播放 -->
   <div class="btn-row">
     <button class="ctrl-btn btn-in" id="micBtn">
       <div class="bg"></div>
@@ -100,195 +49,22 @@
       <span class="label">OUTPUT</span>
     </button>
   </div>
-  <div class="level-bar"><div class="level-fill" id="level"></div></div>
+
+  <!-- 调试日志：默认隐藏，连点顶部连接状态 5 次切换 -->
   <pre id="dbglog"></pre>
 
-  <script>
-    var ws=null, audioCtx=null, workletNode=null, stream=null, outputNode=null;
-    var micOn=false, outOn=false;
-    var msgRxCount=0;
-
-    var statusEl=document.getElementById('status');
-    var micBtn=document.getElementById('micBtn');
-    var outBtn=document.getElementById('outBtn');
-    var level=document.getElementById('level');
-
-    var dbgEl=document.getElementById('dbglog');
-    var dbgVisible=false, statusTapCount=0, statusTapTimer=0;
-    statusEl.addEventListener('click',function(){
-      statusTapCount++;
-      clearTimeout(statusTapTimer);
-      statusTapTimer=setTimeout(function(){statusTapCount=0;},1500);
-      if(statusTapCount>=5){
-        statusTapCount=0;
-        dbgVisible=!dbgVisible;
-        dbgEl.style.display=dbgVisible?'block':'none';
-      }
-    });
-    function log(m,force){
-      console.log('[phone-mic] '+m);
-      if(!dbgVisible&&!force)return; // 面板隐藏时只记录关键事件
-      var line=document.createElement('div');
-      line.textContent=new Date().toLocaleTimeString()+' '+m;
-      dbgEl.appendChild(line);
-      dbgEl.scrollTop=dbgEl.scrollHeight;
-      while(dbgEl.childNodes.length>80)dbgEl.removeChild(dbgEl.firstChild);
-    }
-
-    function send(m){if(ws&&ws.readyState===1)ws.send(JSON.stringify(m));}
-
-    function connectWS(){
-      var p=location.protocol==='https:'?'wss:':'ws:';
-      log('connecting to '+p+'//'+location.host,true);
-      ws=new WebSocket(p+'//'+location.host);
-      ws.binaryType='arraybuffer';
-      ws.onopen=function(){
-        log('ws connected',true);
-        statusEl.textContent='Connected';statusEl.className='status on';
-        // 重连后补发当前开关状态，否则服务端不会恢复 mic/loopback
-        if(micOn)send({type:'mic',enabled:true});
-        if(outOn)send({type:'output',enabled:true});
-      };
-      ws.onmessage=function(e){
-        if(e.data instanceof ArrayBuffer){
-          msgRxCount++;
-          if(outOn&&outputNode){
-            var int16=new Int16Array(e.data);
-            for(var i=0;i<int16.length;i++){outQueue.push(int16[i]/32768);}
-            if(outQueue.length>96000){outQueue=outQueue.slice(-48000);} // 防积压
-          }
-        }
-      };
-      ws.onclose=function(){log('ws closed',true);statusEl.textContent='Disconnected';statusEl.className='status';setTimeout(connectWS,2000);};
-      ws.onerror=function(e){log('ws error',true);statusEl.textContent='Error';statusEl.className='status';};
-    }
-
-    var outQueue=[]; // ScriptProcessor 模式的待播队列
-
-    async function ensureOutput(){
-      if(outputNode){log('outputNode already exists');return;}
-      log('ensureOutput: creating AudioContext...');
-      if(!audioCtx) audioCtx=new AudioContext({sampleRate:48000});
-      if(audioCtx.state==='suspended'){log('resuming AudioContext...');await audioCtx.resume();}
-      log('AudioContext state: '+audioCtx.state);
-      // ScriptProcessorNode：兼容性比 AudioWorklet 好（Android Chrome 实测可靠）
-      // 2048@48kHz ≈ 43ms 固有延迟（4096 为 85ms，减半）
-      outputNode=audioCtx.createScriptProcessor(2048,0,1);
-      outputNode.onaudioprocess=function(ev){
-        var out=ev.outputBuffer.getChannelData(0);
-        // 积压治理：>6000样本(125ms)丢最旧的只留最近；>2500(50ms)每次多消费1个逐步追平
-        if(outQueue.length>6000){outQueue=outQueue.slice(-6000);}
-        var skip=outQueue.length>2500?1:0;
-        for(var i=0;i<out.length;i++){
-          if(outQueue.length>0){out[i]=outQueue.shift();}
-          else{out[i]=0;}
-        }
-        while(skip-- >0&&outQueue.length>2500){outQueue.shift();}
-      };
-      outputNode.connect(audioCtx.destination);
-      // ScriptProcessor 也需要一条返回路径保持被拉流（静音输入）
-      var silent=audioCtx.createGain();silent.gain.value=0;
-      var sink=audioCtx.createGain();
-      silent.connect(sink);sink.connect(outputNode);
-      log('ScriptProcessor output created');
-      playTestTone();
-    }
-
-    // 自检：本地生成1秒"哔"声。能听到=手机播放链路正常；听不到=手机端问题
-    function playTestTone(){
-      log('playing test tone...');
-      var osc=audioCtx.createOscillator();
-      var g=audioCtx.createGain();
-      osc.frequency.value=440;
-      g.gain.value=0.3;
-      osc.connect(g);g.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime+0.6);
-      log('test tone done - if you heard a beep, phone audio works');
-    }
-
-    async function ensureMic(){
-      if(workletNode){log('workletNode already exists');return;}
-      log('ensureMic: creating AudioContext...');
-      if(!audioCtx) audioCtx=new AudioContext({sampleRate:48000});
-      if(audioCtx.state==='suspended'){await audioCtx.resume();}
-      log('requesting mic permission...');
-      stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:true,autoGainControl:true,sampleRate:48000,channelCount:1}});
-      log('mic permission granted');
-      var src=audioCtx.createMediaStreamSource(stream);
-      // 音质链路：高通100Hz去低频杂音 → 温和压缩器均衡远近场 → 增益1.6抬人声
-      var hp=audioCtx.createBiquadFilter();
-      hp.type='highpass';hp.frequency.value=100;hp.Q.value=0.7;
-      var comp=audioCtx.createDynamicsCompressor();
-      comp.threshold.value=-32;comp.knee.value=20;comp.ratio.value=3;
-      comp.attack.value=0.01;comp.release.value=0.25;
-      var gain=audioCtx.createGain();gain.gain.value=1.6;
-      src.connect(hp);hp.connect(comp);comp.connect(gain);
-      // ScriptProcessor 采集（与输出同方案，避开 AudioWorklet port 兼容问题）
-      workletNode=audioCtx.createScriptProcessor(4096,1,1);
-      var pcmBuf=[];
-      workletNode.onaudioprocess=function(ev){
-        var inp=ev.inputBuffer.getChannelData(0);
-        // 攒满960样本(20ms)发一包
-        for(var i=0;i<inp.length;i++){
-          pcmBuf.push(inp[i]);
-        }
-        while(pcmBuf.length>=960){
-          var chunk=pcmBuf.splice(0,960);
-          var pcm16=new Int16Array(960);
-          var sum=0;
-          for(var j=0;j<960;j++){
-            var s=Math.max(-1,Math.min(1,chunk[j]));
-            pcm16[j]=s<0?s*0x8000:s*0x7FFF;
-            sum+=s*s;
-          }
-          var rms=Math.sqrt(sum/960);
-          if(ws&&ws.readyState===1)ws.send(pcm16.buffer);
-          level.style.width=Math.min(100,rms*300)+'%';
-        }
-      };
-      var srcSink=audioCtx.createGain();
-      gain.connect(srcSink);srcSink.connect(workletNode);
-      // 必须连到 destination 才会被拉流处理；用零增益避免回声
-      var silent=audioCtx.createGain();silent.gain.value=0;
-      workletNode.connect(silent);silent.connect(audioCtx.destination);
-      log('mic input connected (ScriptProcessor)');
-    }
-
-    function cleanup(){
-      if(!micOn&&!outOn){
-        log('cleanup: closing AudioContext');
-        if(audioCtx){audioCtx.close();audioCtx=null;}
-        if(stream){stream.getTracks().forEach(function(t){t.stop();});stream=null;}
-        workletNode=null;
-        outputNode=null;
-      }else if(!micOn&&workletNode){
-        if(stream){stream.getTracks().forEach(function(t){t.stop();});stream=null;}
-        workletNode=null;
-      }
-    }
-
-    micBtn.onclick=async function(){
-      try{
-        if(!micOn){await ensureMic();micOn=true;}
-        else{micOn=false;}
-        micBtn.classList.toggle('on',micOn);
-        send({type:'mic',enabled:micOn});
-        cleanup();
-      }catch(e){log('mic error: '+e.message);statusEl.textContent='Mic error: '+e.message;statusEl.className='status';}
-    };
-
-    outBtn.onclick=async function(){
-      try{
-        if(!outOn){await ensureOutput();outOn=true;}
-        else{outOn=false;}
-        outBtn.classList.toggle('on',outOn);
-        send({type:'output',enabled:outOn});
-        cleanup();
-      }catch(e){log('output error: '+e.message);statusEl.textContent='Output error: '+e.message;statusEl.className='status';}
-    };
-
-    connectWS();
-  </script>
+  <!--
+    脚本模块（顺序敏感，均为 IIFE 挂载到 window.PhoneMic 命名空间）：
+    - wakelock.js  屏幕常亮开关（默认开启）
+    - connection.js WebSocket 连接与自动重连
+    - audio.js      麦克风采集 + 扬声器播放（ScriptProcessor）
+    - waveform.js   波形可视化（页面加载即显示静音波形）
+    - main.js       主入口：初始化各模块、绑定按钮、启动连接（必须最后）
+  -->
+  <script src="js/wakelock.js"></script>
+  <script src="js/connection.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/waveform.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>

@@ -1,0 +1,63 @@
+/* ============================================================
+ * styles/layout.css — 页面三大区块布局
+ * 职责：顶部状态栏 / 中部波形区 / 底部按钮区的尺寸与排布
+ * 关键点：flex 三段式，波形区自适应剩余高度，安全区适配 iPhone 刘海
+ * ============================================================ */
+
+/* ---------- 顶部状态栏：毛玻璃条，左连接状态 / 右常亮开关 ---------- */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  /* iPhone 刘海安全区：顶部自动加高 */
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 12px;
+  background: rgba(28,28,30,0.72);                 /* iOS 深色毛玻璃底 */
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;                                   /* 不随波形区压缩 */
+}
+
+/* 连接状态：小圆点 + 文字 */
+.conn { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.conn .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #8e8e93;                              /* 灰 = 断开 */
+  flex-shrink: 0;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.conn.on .dot {
+  background: #30d158;                              /* iOS 绿 = 已连接 */
+  box-shadow: 0 0 8px rgba(48,209,88,0.8);
+}
+#statusText {
+  font-size: 14px; font-weight: 500; letter-spacing: 0.2px;
+  color: rgba(255,255,255,0.75);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ---------- 中部波形区：canvas 自适应填满剩余空间 ---------- */
+.wave-area {
+  flex: 1;              /* 吃掉顶栏与按钮区之间的全部高度 */
+  min-height: 0;        /* 允许 flex 收缩，防止撑出滚动条 */
+  display: flex; align-items: center; justify-content: center;
+  padding: 12px 0;
+}
+#wave {
+  width: 100%; height: 100%;
+  display: block;
+}
+
+/* ---------- 底部按钮区：左右两个大圆钮 ---------- */
+.btn-row {
+  display: flex; justify-content: space-around; align-items: flex-start;
+  /* 底部安全区（iPhone Home 横条）自动加高 */
+  padding: 8px 24px calc(env(safe-area-inset-bottom, 0px) + 40px);
+  flex-shrink: 0;
+}
+
+/* ---------- 调试日志面板：默认隐藏，连点连接状态 5 次切换 ---------- */
+#dbglog {
+  position: fixed; left: 0; right: 0; bottom: 0; height: 30vh;
+  background: rgba(0,0,0,0.85); color: #0f0; font: 10px monospace;
+  overflow-y: scroll; padding: 4px; word-break: break-all; z-index: 9;
+  display: none;
+}

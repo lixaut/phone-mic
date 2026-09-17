@@ -1,2 +1,4 @@
 - phone-mic 项目坑：(1) VB-CABLE 用 waveIn 轮询 dwFlags 永远收不到 WHDR_DONE，loopback.exe 必须用 CALLBACK_FUNCTION 回调模式采集；(2) 用户的手机 Chrome 上 AudioWorklet port.postMessage 消息进不了 worklet（process 正常跑但 received=0），输出链路用 ScriptProcessorNode+JS 队列替代 audio-output.js worklet；(3) 电脑必须把默认输出切到 CABLE Input 才有声音进管道，server.js 的 hasSound 日志可检测。
 - audio-player.cs 的 WAVEHDR 曾误加 Pack=2 导致 waveOutWrite 返回错误码 11 (MMSYSERR_INVALPARAM) 且旧代码静默吞掉返回值，数据从未真正进 CABLE；已去掉 Pack 并加返回值校验+自愈重启。以后 winmm 结构体不要加 Pack=2，waveOut*/waveIn* 返回值必须校验。
+- 用户要求：只在用户明确让提交时才 git commit（不要主动提交）；提交信息（subject/body）用中文写。此偏好优先于默认的英文提交信息规则。
+- 浏览器版录音音质链路调优结论：NS+AGC 开、AEC 必须关（用户场景开 AEC 会导致声音一卡一卡）、高通 100Hz、温和压缩(threshold -32/ratio 3)、增益 1.6x 为实测最佳组合；强压缩(6:1/-38dB)会放大 AEC 呼吸效应产生卡顿感。
