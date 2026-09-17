@@ -38,8 +38,8 @@
         // 二进制帧 = PCM 音频，仅输出模式开启时入队
         if (PhoneMic.outOn && PhoneMic.outputNode) {
           var int16 = new Int16Array(e.data);
-          for (var i = 0; i < int16.length; i++) { outQueue.push(int16[i] / 32768); }
-          if (outQueue.length > 6000) { outQueue = outQueue.slice(-6000); } // 防积压
+          for (var i = 0; i < int16.length; i++) { PhoneMic.outQueue.push(int16[i] / 32768); }
+          if (PhoneMic.outQueue.length > 6000) { PhoneMic.outQueue.splice(0, PhoneMic.outQueue.length - 6000); } // 防积压
         }
       }
     };

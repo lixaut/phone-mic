@@ -4,33 +4,40 @@
  * 关键点：flex 三段式，波形区自适应剩余高度，安全区适配 iPhone 刘海
  * ============================================================ */
 
-/* ---------- 顶部状态栏：毛玻璃条，左连接状态 / 右常亮开关 ---------- */
+/* ---------- 顶部状态栏：悬浮胶囊条，毛玻璃，Apple 风格 ---------- */
 .topbar {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  left: 50%; transform: translateX(-50%);
+  width: calc(100% - 24px);
+  max-width: 400px;
   display: flex; align-items: center; justify-content: space-between;
-  /* iPhone 刘海安全区：顶部自动加高 */
-  padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 12px;
-  background: rgba(28,28,30,0.72);                 /* iOS 深色毛玻璃底 */
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  flex-shrink: 0;                                   /* 不随波形区压缩 */
+  padding: 10px 12px;
+  background: rgba(44,44,46,0.72);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border-radius: 22px;
+  border: 1px solid rgba(255,255,255,0.12);
+  z-index: 10;
+  flex-shrink: 0;
+  transform-origin: top center;
 }
 
 /* 连接状态：小圆点 + 文字 */
-.conn { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.conn { display: flex; align-items: center; gap: 7px; min-width: 0; transform: translateZ(0); }
 .conn .dot {
-  width: 8px; height: 8px; border-radius: 50%;
+  width: 7px; height: 7px; border-radius: 50%;
   background: #8e8e93;                              /* 灰 = 断开 */
   flex-shrink: 0;
   transition: background 0.3s, box-shadow 0.3s;
 }
 .conn.on .dot {
   background: #30d158;                              /* iOS 绿 = 已连接 */
-  box-shadow: 0 0 8px rgba(48,209,88,0.8);
+  box-shadow: 0 0 6px rgba(48,209,88,0.7);
 }
 #statusText {
-  font-size: 14px; font-weight: 500; letter-spacing: 0.2px;
-  color: rgba(255,255,255,0.75);
+  font-size: 13px; font-weight: 500; letter-spacing: 0.2px;
+  color: rgba(255,255,255,0.8);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
@@ -40,18 +47,68 @@
   min-height: 0;        /* 允许 flex 收缩，防止撑出滚动条 */
   display: flex; align-items: center; justify-content: center;
   padding: 12px 0;
+  /* 为悬浮顶栏留出空间 */
+  padding-top: calc(env(safe-area-inset-top, 0px) + 62px);
+  position: relative;
+  overflow: hidden;
+}
+.wave-area::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 10%; right: 10%;
+  height: 1px;
+  background: radial-gradient(ellipse at center, rgba(255,255,255,0.08), transparent 70%);
+  pointer-events: none;
 }
 #wave {
   width: 100%; height: 100%;
   display: block;
 }
 
+/* ---------- 下拉刷新指示器 ---------- */
+.pull-indicator {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 56px);
+  left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px;
+  color: rgba(255,255,255,0.7);
+  font-size: 13px; font-weight: 500;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 20;
+  background: rgba(44,44,46,0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 999px;
+  padding: 6px 14px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.pull-indicator.active {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.pull-indicator.refreshing .pull-icon {
+  animation: spin 0.7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.pull-icon { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+
 /* ---------- 底部按钮区：左右两个大圆钮 ---------- */
 .btn-row {
   display: flex; justify-content: space-around; align-items: flex-start;
   /* 底部安全区（iPhone Home 横条）自动加高 */
-  padding: 8px 24px calc(env(safe-area-inset-bottom, 0px) + 40px);
+  padding: 20px 20px calc(env(safe-area-inset-bottom, 0px) + 20px);
   flex-shrink: 0;
+  position: relative;
+}
+.btn-row::before {
+  content: '';
+  position: absolute;
+  top: -40px; left: 0; right: 0;
+  height: 40px;
+  background: linear-gradient(to top, #0a0a0a, transparent);
+  pointer-events: none;
 }
 
 /* ---------- 调试日志面板：默认隐藏，连点连接状态 5 次切换 ---------- */

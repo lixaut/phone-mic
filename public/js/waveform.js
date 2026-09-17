@@ -26,7 +26,7 @@
 
   var BARS = 64;        // 竖条数量：低密度防摩尔纹
   var FRAME_MS = 50;    // 绘制间隔 ≈20fps
-  var EMA_K = 0.25;     // EMA 系数：越小越钝
+  var EMA_K = 0.25;     // EMA 系数：帧间平滑
 
   /** 初始化 Analyser 并启动渲染循环（幂等；由 audio.js 在链路建立时调用） */
   function setupWave() {
@@ -72,10 +72,15 @@
       var seg = Math.floor(n / BARS) || 1;
       var colW = w / BARS;
       var barW = Math.max(2, colW * 0.45);
-      ctx2d.fillStyle = 'rgba(255,255,255,0.45)';
+      var halfBars = BARS / 2;
 
       for (var b = 0; b < BARS; b++) {
         var x = b * colW + colW / 2;
+        // 中心→两边渐变因子：1=中心，0=边缘
+        var pos = 1 - Math.abs(b - halfBars) / halfBars;
+        var opacity = 0.8 * pos;                  // 透明度：中心80% → 边缘0%
+        var heightK = 0.1 + 2.9 * pos;           // 高度系数：中心3.0 → 边缘0.1
+
         // 段内均值（比峰值稳，不毛躁）
         var sum = 0;
         if (buf) {
@@ -88,15 +93,15 @@
         var prev = ema[b];
         a = prev + (a - prev) * EMA_K;
         ema[b] = a;
-        // 非线性对比度增强：小声放大、大声饱和
-        a = Math.pow(Math.min(1, a * 1.8), 0.8);
 
         if (a < 0.02) {
           // 静音：短横线段（与波宽同宽）
+          ctx2d.fillStyle = 'rgba(255,255,255,' + (opacity * 0.35) + ')';
           ctx2d.fillRect(x - barW / 2, h / 2 - 0.75, barW, 1.5);
         } else {
           // 有声：居中镜像竖条
-          var bh = Math.max(4, a * h * 0.46);
+          var bh = Math.max(3, a * h * 0.48 * heightK);
+          ctx2d.fillStyle = 'rgba(255,255,255,' + opacity + ')';
           ctx2d.fillRect(x - barW / 2, h / 2 - bh, barW, bh * 2);
         }
       }

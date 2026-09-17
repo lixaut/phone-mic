@@ -2,7 +2,7 @@
  * styles/components.css — 可交互组件样式
  * 职责：常亮开关徽章、INPUT/OUTPUT 大圆钮（黑白灰基调）
  * 色彩规范：控件一律黑白灰；彩色仅用于状态语义
- *   （连接绿 #30d158 / 常亮黄 #ffd60a）
+ *   （连接绿 #30d158 / 常亮绿 #30d158）
  * ============================================================ */
 
 /* ---------- 常亮开关：iOS 开关质感的小胶囊徽章 ---------- */
@@ -10,19 +10,19 @@
   cursor: pointer;
   font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
   color: rgba(255,255,255,0.55);
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
   border-radius: 999px;
-  padding: 5px 12px;
+  padding: 4px 10px;
   transition: all 0.25s;
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
+  transform: translateZ(0);
 }
 .awake-toggle.on {
-  color: #1c1c1e;                       /* 深色文字配黄底 */
-  background: #ffd60a;                  /* iOS 黄 = 常亮生效 */
-  border-color: #ffd60a;
-  box-shadow: 0 0 12px rgba(255,214,10,0.45);
+  color: #0a0a0a;
+  background: #30d158;                  /* iOS 绿 = 常亮生效，与连接色统一 */
+  border-color: #30d158;
 }
 
 /* ---------- 大圆钮通用结构 ---------- */
@@ -49,31 +49,32 @@
 
 /* 按钮下方文字标签：开启时提亮 */
 .label {
-  position: absolute; bottom: -24px; left: 50%; transform: translateX(-50%);
-  font-size: 11px; font-weight: 600; letter-spacing: 0.8px;
+  position: absolute; bottom: -30px; left: 50%; transform: translateX(-50%);
+  font-size: 10px; font-weight: 600; letter-spacing: 1px;
   white-space: nowrap; transition: color 0.15s;
-  color: rgba(255,255,255,0.35);
+  color: rgba(255,255,255,0.3);
+  text-transform: uppercase;
 }
-.ctrl-btn.on .label { color: rgba(255,255,255,0.95); }
+.ctrl-btn.on .label { color: rgba(255,255,255,0.9); }
 
-/* ---------- INPUT（麦克风）：开启态=白圈描边+图标反白 ---------- */
-.btn-in .bg { background: rgba(255,255,255,0.07); }
-.btn-in .icon-wrap { background: rgba(255,255,255,0.10); }
-.btn-in svg { fill: rgba(255,255,255,0.45); }
+/* ---------- INPUT（麦克风）：开启态=柔和内发光+微妙描边 ---------- */
+.btn-in .bg { background: rgba(255,255,255,0.06); }
+.btn-in .icon-wrap { background: rgba(255,255,255,0.08); }
+.btn-in svg { fill: rgba(255,255,255,0.4); }
 .btn-in.on .bg {
-  background: rgba(255,255,255,0.22);
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.85), 0 0 28px rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.15);
+  box-shadow: inset 0 0 20px rgba(255,255,255,0.08), 0 0 0 1px rgba(255,255,255,0.6);
 }
 .btn-in.on .icon-wrap { background: rgba(255,255,255,0.85); }
 .btn-in.on svg { fill: #1c1c1e; }
 
 /* ---------- OUTPUT（扬声器）：与 INPUT 同风格 ---------- */
-.btn-out .bg { background: rgba(255,255,255,0.07); }
-.btn-out .icon-wrap { background: rgba(255,255,255,0.10); }
-.btn-out svg { fill: rgba(255,255,255,0.45); }
+.btn-out .bg { background: rgba(255,255,255,0.06); }
+.btn-out .icon-wrap { background: rgba(255,255,255,0.08); }
+.btn-out svg { fill: rgba(255,255,255,0.4); }
 .btn-out.on .bg {
-  background: rgba(255,255,255,0.22);
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.85), 0 0 28px rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.15);
+  box-shadow: inset 0 0 20px rgba(255,255,255,0.08), 0 0 0 1px rgba(255,255,255,0.6);
 }
 .btn-out.on .icon-wrap { background: rgba(255,255,255,0.85); }
 .btn-out.on svg { fill: #1c1c1e; }

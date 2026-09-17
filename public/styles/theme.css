@@ -11,7 +11,7 @@ html, body { height: 100%; }
 body {
   /* iOS 系统字体栈（SF Pro 风格） */
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
-  background: #000;            /* 纯黑底，突出波形与控件 */
+  background: #0a0a0a;            /* 微暖深灰，比纯黑更高级 */
   color: #fff;
   display: flex;
   flex-direction: column;      /* 三段式纵向布局 */

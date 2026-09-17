@@ -31,7 +31,7 @@
   /* ---------- 调试日志（默认只进 console；面板可见时同步到 DOM） ---------- */
   P.log = function (m, force) {
     console.log('[phone-mic] ' + m);
-    if (!dbgVisible && !force) return; // 面板隐藏时只记录关键事件
+    if (!dbgVisible && !force) return;
     var line = document.createElement('div');
     line.textContent = new Date().toLocaleTimeString() + ' ' + m;
     dbgEl.appendChild(line);
@@ -45,6 +45,11 @@
     connEl.classList.toggle('on', connected);
   };
 
+  /** 常亮同步：任一开启→常亮开；全关→常亮关 */
+  function syncWakeLock() {
+    P.setWakeLock(P.micOn || P.outOn);
+  }
+
   /* ---------- INPUT 按钮：开/关麦克风采集 ---------- */
   function onMicBtn() {
     return async function () {
@@ -54,6 +59,7 @@
         micBtn.classList.toggle('on', P.micOn);
         P.send({ type: 'mic', enabled: P.micOn });
         P.cleanup();
+        syncWakeLock();
       } catch (e) {
         P.log('mic error: ' + e.message);
         statusText.textContent = 'Mic error: ' + e.message;
@@ -71,6 +77,7 @@
         outBtn.classList.toggle('on', P.outOn);
         P.send({ type: 'output', enabled: P.outOn });
         P.cleanup();
+        syncWakeLock();
       } catch (e) {
         P.log('output error: ' + e.message);
         statusText.textContent = 'Output error: ' + e.message;
@@ -94,6 +101,42 @@
     });
   }
 
+  /* ---------- 下拉刷新：波形区下拉触发页面刷新 ---------- */
+  function bindPullRefresh() {
+    var area = document.getElementById('waveArea');
+    var indicator = document.getElementById('pullIndicator');
+    var pullText = indicator.querySelector('.pull-text');
+    var startY = 0, lastDy = 0, pulling = false, threshold = 80;
+
+    area.addEventListener('touchstart', function (e) {
+      if (window.scrollY > 0) return;
+      startY = e.touches[0].clientY;
+      lastDy = 0;
+      pulling = true;
+    }, { passive: true });
+
+    area.addEventListener('touchmove', function (e) {
+      if (!pulling) return;
+      var dy = e.touches[0].clientY - startY;
+      if (dy <= 0) { dy = 0; pulling = false; return; }
+      lastDy = dy;
+      indicator.classList.add('active');
+      pullText.textContent = dy >= threshold ? '松手刷新' : '下拉刷新';
+    }, { passive: true });
+
+    area.addEventListener('touchend', function () {
+      if (!pulling) return;
+      pulling = false;
+      if (lastDy >= threshold) {
+        indicator.classList.add('refreshing');
+        pullText.textContent = '刷新中...';
+        setTimeout(function () { location.reload(); }, 600);
+      } else {
+        indicator.classList.remove('active', 'refreshing');
+      }
+    });
+  }
+
   /* ---------- 启动 ---------- */
   document.addEventListener('DOMContentLoaded', function () {
     statusText = document.getElementById('statusText');
@@ -103,12 +146,13 @@
     dbgEl = document.getElementById('dbglog');
 
     bindDebugToggle();
+    bindPullRefresh();
     micBtn.onclick = onMicBtn();
     outBtn.onclick = onOutBtn();
 
     // 各功能模块初始化（脚本加载顺序保证 PhoneMic 已就绪）
     P.initWaveform();   // 波形：页面加载即显示静音线段
-    P.initWakeLock();   // 常亮：默认开启
+    P.initWakeLock();   // 常亮：绑定按钮事件（默认关，由 INPUT/OUTPUT 联动）
 
     // 建立 WebSocket 连接（connection.js）
     P.connectWS();

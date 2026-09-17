@@ -93,13 +93,14 @@
     if (outputNode) return; // 幂等
     PhoneMic.log('ensureOutput: creating AudioContext...');
     await ensureCtx();
+    PhoneMic.log('ensureOutput: AudioContext state=' + audioCtx.state);
     // 2048@48kHz ≈ 43ms 固有延迟（4096 为 85ms）
     outputNode = audioCtx.createScriptProcessor(2048, 0, 1);
     outputNode.onaudioprocess = function (ev) {
       var out = ev.outputBuffer.getChannelData(0);
       var q = PhoneMic.outQueue;
       // 积压治理：>6000样本(125ms) 丢最旧的；>2500(50ms) 每轮多消费1个追平
-      if (q.length > 6000) { q = q.slice(-6000); PhoneMic.outQueue = q; }
+      if (q.length > 6000) { q.splice(0, q.length - 6000); }
       var skip = q.length > 2500 ? 1 : 0;
       for (var i = 0; i < out.length; i++) {
         out[i] = q.length > 0 ? q.shift() : 0;
@@ -148,7 +149,7 @@
     } else if (!PhoneMic.micOn && workletNode) {
       if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
       workletNode = null;
-      PhoneMic.analyser = null;
+      if (!PhoneMic.outOn) PhoneMic.analyser = null;
     }
   }
 

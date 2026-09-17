@@ -1,8 +1,8 @@
 /* ============================================================
  * js/wakelock.js — 屏幕常亮开关（Wake Lock API）
  * 职责：
- *   1. 页面加载即自动申请屏幕常亮（默认开启）
- *   2. 用户可点击顶栏「常亮」徽章手动开/关
+ *   1. 用户可点击顶栏「常亮」徽章手动开/关
+ *   2. INPUT/OUTPUT 任意开启时自动常亮，两者都关时自动关闭
  *   3. 系统强制释放（切后台）时开关回弹到关
  * 依赖：Wake Lock API（Chrome/Android、Safari 16.4+）；不支持则隐藏开关
  * 对外暴露：window.PhoneMic.setWakeLock(on)
@@ -41,12 +41,10 @@
     }
   }
 
-  /** 模块初始化：绑定按钮事件 + 默认开启 */
+  /** 模块初始化：绑定按钮事件（默认关，由 INPUT/OUTPUT 联动控制） */
   function init() {
     btn = document.getElementById('awakeBtn');
     btn.onclick = function () { setWakeLock(!wakeLock); };
-    // 默认开启；若浏览器要求用户手势，申请失败后仍可手动点击
-    setWakeLock(true);
   }
 
   // 挂到全局命名空间（无构建工具，用 window 约定模块边界）
