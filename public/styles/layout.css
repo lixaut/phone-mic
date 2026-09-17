@@ -68,31 +68,31 @@
 /* ---------- 下拉刷新指示器 ---------- */
 .pull-indicator {
   position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 56px);
+  top: 100px;
   left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: 6px;
-  color: rgba(255,255,255,0.7);
-  font-size: 13px; font-weight: 500;
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s;
-  opacity: 0;
+  color: rgba(255,255,255,0.8);
+  font-size: 12px; font-weight: 400;
   pointer-events: none;
-  z-index: 20;
-  background: rgba(44,44,46,0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 999px;
-  padding: 6px 14px;
-  border: 1px solid rgba(255,255,255,0.1);
-}
-.pull-indicator.active {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  z-index: 999;
 }
 .pull-indicator.refreshing .pull-icon {
-  animation: spin 0.7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: spin 0.6s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-.pull-icon { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+.pull-icon { width: 14px; height: 14px; fill: currentColor; flex-shrink: 0; }
+
+/* ---------- 页面内容容器（下拉时整体下移） ---------- */
+.page-content {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  will-change: transform;
+  overflow: hidden;
+  background: #0a0a0a;
+  position: relative;
+  z-index: 1;
+}
 
 /* ---------- 底部按钮区：左右两个大圆钮 ---------- */
 .btn-row {

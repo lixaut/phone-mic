@@ -9,13 +9,12 @@
 html, body { height: 100%; }
 
 body {
-  /* iOS 系统字体栈（SF Pro 风格） */
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
-  background: #0a0a0a;            /* 微暖深灰，比纯黑更高级 */
+  background: #0a0a0a;
   color: #fff;
-  display: flex;
-  flex-direction: column;      /* 三段式纵向布局 */
   -webkit-user-select: none;
-  user-select: none;           /* 禁止文字选中（工具类页面） */
-  overflow: hidden;            /* 禁止滚动，一屏适配 */
+  user-select: none;
+  overflow: visible;
+  height: 100%;
+  margin: 0;
 }

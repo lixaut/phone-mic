@@ -101,38 +101,110 @@
     });
   }
 
-  /* ---------- 下拉刷新：波形区下拉触发页面刷新 ---------- */
+  /* ---------- 下拉刷新：整个页面下移 + 指示器露出 ---------- */
   function bindPullRefresh() {
-    var area = document.getElementById('waveArea');
+    var content = document.getElementById('pageContent');
     var indicator = document.getElementById('pullIndicator');
     var pullText = indicator.querySelector('.pull-text');
-    var startY = 0, lastDy = 0, pulling = false, threshold = 80;
+    var pullIcon = indicator.querySelector('.pull-icon');
+    var waveArea = document.getElementById('waveArea');
+    var startY = 0, dy = 0, pulling = false, threshold = 100;
+    var currentY = 0, currentO = 0, currentR = 0;
 
-    area.addEventListener('touchstart', function (e) {
+    // 对数阻尼：越拉越涩，手感自然
+    function damp(x) { return x <= 0 ? 0 : 120 * Math.log(1 + x / 120); }
+
+    function apply(y, o, r) {
+      currentY = y; currentO = o; currentR = r;
+      content.style.transform = 'translateY(' + y + 'px)';
+      indicator.style.opacity = o;
+      pullIcon.style.transform = 'rotate(' + r + 'deg)';
+    }
+
+    // 弹回：ease-out-expo（快起慢停）
+    function snapBack(fromY, fromO, fromR) {
+      var startTime = performance.now();
+      var duration = 500;
+      function tick(now) {
+        var t = Math.min((now - startTime) / duration, 1);
+        // ease-out-expo: 1 - 2^(-10t)
+        var ease = 1 - Math.pow(2, -10 * t);
+        apply(fromY * (1 - ease), fromO * (1 - ease), fromR * (1 - ease));
+        if (t < 1) requestAnimationFrame(tick);
+        else { apply(0, 0, 0); content.style.transform = ''; }
+      }
+      requestAnimationFrame(tick);
+    }
+
+    waveArea.addEventListener('touchstart', function (e) {
       if (window.scrollY > 0) return;
       startY = e.touches[0].clientY;
-      lastDy = 0;
+      dy = 0;
       pulling = true;
+      indicator.classList.remove('refreshing');
+      content.style.transition = 'none';
     }, { passive: true });
 
-    area.addEventListener('touchmove', function (e) {
+    waveArea.addEventListener('touchmove', function (e) {
       if (!pulling) return;
-      var dy = e.touches[0].clientY - startY;
-      if (dy <= 0) { dy = 0; pulling = false; return; }
-      lastDy = dy;
-      indicator.classList.add('active');
-      pullText.textContent = dy >= threshold ? '松手刷新' : '下拉刷新';
+      var delta = e.touches[0].clientY - startY;
+      if (delta <= 0) { dy = 0; apply(0, 0, 0); return; }
+      dy = delta;
+      var move = damp(dy);
+      var progress = Math.min(dy / threshold, 1);
+      var rotation = progress * 270;
+      apply(move, Math.min(1, progress * 1.5), rotation);
+      pullText.textContent = progress >= 1 ? '松手刷新' : '下拉刷新';
     }, { passive: true });
 
-    area.addEventListener('touchend', function () {
+    // 通用 ease-out-expo 动画
+    function animateTo(fromY, fromO, fromR, toY, toO, toR, dur, cb) {
+      var startTime = performance.now();
+      function tick(now) {
+        var t = Math.min((now - startTime) / dur, 1);
+        var ease = 1 - Math.pow(2, -10 * t);
+        apply(
+          fromY + (toY - fromY) * ease,
+          fromO + (toO - fromO) * ease,
+          fromR + (toR - fromR) * ease
+        );
+        if (t < 1) requestAnimationFrame(tick);
+        else if (cb) cb();
+      }
+      requestAnimationFrame(tick);
+    }
+
+    waveArea.addEventListener('touchend', function () {
       if (!pulling) return;
       pulling = false;
-      if (lastDy >= threshold) {
-        indicator.classList.add('refreshing');
-        pullText.textContent = '刷新中...';
-        setTimeout(function () { location.reload(); }, 600);
+      var progress = Math.min(dy / threshold, 1);
+
+      if (progress >= 1) {
+        var fromY = currentY, fromO = currentO, fromR = currentR;
+        var halfY = fromY * 0.5, halfO = fromO * 0.5;
+
+        // 第一段：回弹到 50%，文字露出
+        animateTo(fromY, fromO, fromR, halfY, halfO, 0, 350, function () {
+          indicator.classList.add('refreshing');
+          pullText.textContent = '刷新中...';
+          // 第二段：刷新完成 → 显示成功 → 渐隐
+          setTimeout(function () {
+            indicator.classList.remove('refreshing');
+            pullText.textContent = '刷新成功';
+            // 渐隐文字
+            animateTo(halfY, halfO, 0, halfY, 0, 0, 300, function () {
+              // 第三段：文字消失后回弹归零
+              setTimeout(function () {
+                animateTo(halfY, 0, 0, 0, 0, 0, 450, function () {
+                  apply(0, 0, 0);
+                  content.style.transform = '';
+                });
+              }, 50);
+            });
+          }, 800);
+        });
       } else {
-        indicator.classList.remove('active', 'refreshing');
+        snapBack(currentY, currentO, currentR);
       }
     });
   }
