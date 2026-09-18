@@ -73,6 +73,7 @@
   display: flex; align-items: center; gap: 6px;
   color: rgba(255,255,255,0.8);
   font-size: 12px; font-weight: 400;
+  opacity: 0; /* 初始隐藏，透明度由下拉手势 JS 控制 */
   pointer-events: none;
   z-index: 999;
 }
